@@ -18,6 +18,11 @@ from core.brain import (
 api_bp = Blueprint("api", __name__)
 
 
+def get_real_ip() -> str:
+    """Return the real client IP, works correctly behind ngrok/nginx (ProxyFix required in app.py)."""
+    return request.remote_addr or "unknown"
+
+
 # ── HTML page ────────────────────────────────────────────────────────────────
 
 @api_bp.route("/")
@@ -39,6 +44,8 @@ def ask():
     msg = payload.get("message")
     if not isinstance(msg, str) or not msg.strip():
         return jsonify({"error": "message must be a non-empty string"}), 400
+
+    print(f"[/ask] IP={get_real_ip()} | message={msg[:60]}")
 
     tts_provider    = normalize_tts_provider(payload.get("tts_provider", "local"))
     vision_provider = normalize_vision_provider(payload.get("vision_provider", "openai"))
