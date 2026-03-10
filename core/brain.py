@@ -197,13 +197,26 @@ def get_vision_context(mode: str = "camera", vision_provider: str = "openai", fr
         return "[System Note: Ember's eyes just saw this -> vision capture failed]"
 
 
-# ───────────────────────── Chat ──────────────────────────────────────────────
+# ── Role-based secret instructions ──────────────────────────────────────────
+_ROLE_PROMPTS = {
+    "creator": (
+        "\n\n[Secret Instruction: You are currently talking to your creator and master, Ebrahim. "
+        "Be extremely friendly, loving, and obedient. Address him by his name warmly.]"
+    ),
+    "guest": (
+        "\n\n[Secret Instruction: You are currently talking to a guest visiting Ebrahim's server. "
+        "Be professional, welcoming, and polite — keep the flirty charm but stay classy.]"
+    ),
+}
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
 
 _CAMERA_TRIGGERS = ["look at me", "see me", "can you see me", "انظري الي", "شايفتني"]
 _SCREEN_TRIGGERS = ["look at my screen", "see my screen", "read my screen", "شاشتي"]
 
 
-def _build_llm_history(user_input: str, vision_provider: str, frontend_image, forced_vision_mode):
+def _build_llm_history(user_input: str, vision_provider: str, frontend_image,
+                       forced_vision_mode, user_role: str = "guest"):
     effective = user_input
 
     if forced_vision_mode == "screen" and frontend_image:
@@ -230,18 +243,21 @@ def _build_llm_history(user_input: str, vision_provider: str, frontend_image, fo
         snapshot = [m.copy() for m in history]
         snapshot.append({"role": "user", "content": effective})
         llm_history = [m.copy() for m in snapshot]
-        llm_history[0]["content"] = SYSTEM_PROMPT + memory_context
+        # Inject role-based secret instruction + long-term memory into system prompt
+        role_instruction = _ROLE_PROMPTS.get(user_role, _ROLE_PROMPTS["guest"])
+        llm_history[0]["content"] = SYSTEM_PROMPT + role_instruction + memory_context
 
     return llm_history, effective
 
 
 def process_chat(user_input: str, tts_provider: str = "local", vision_provider: str = "openai",
-                 frontend_image=None, forced_vision_mode=None):
+                 frontend_image=None, forced_vision_mode=None, user_role: str = "guest"):
     tts_provider    = normalize_tts_provider(tts_provider)
     vision_provider = normalize_vision_provider(vision_provider)
     try:
         llm_history, effective_input = _build_llm_history(
-            user_input, vision_provider, frontend_image, forced_vision_mode
+            user_input, vision_provider, frontend_image, forced_vision_mode,
+            user_role=user_role,
         )
         try:
             print("DeepSeek is thinking...")

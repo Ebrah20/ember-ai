@@ -19,8 +19,14 @@ api_bp = Blueprint("api", __name__)
 
 
 def get_real_ip() -> str:
-    """Return the real client IP, works correctly behind ngrok/nginx (ProxyFix required in app.py)."""
+    """Return the real client IP. ProxyFix in app.py handles X-Forwarded-For automatically."""
     return request.remote_addr or "unknown"
+
+
+def get_user_role() -> str:
+    """Return 'creator' if the request is from localhost, otherwise 'guest'."""
+    ip = get_real_ip()
+    return "creator" if ip in ("127.0.0.1", "::1") else "guest"
 
 
 # ── HTML page ────────────────────────────────────────────────────────────────
@@ -45,7 +51,8 @@ def ask():
     if not isinstance(msg, str) or not msg.strip():
         return jsonify({"error": "message must be a non-empty string"}), 400
 
-    print(f"[/ask] IP={get_real_ip()} | message={msg[:60]}")
+    user_role = get_user_role()
+    print(f"[/ask] IP={get_real_ip()} | role={user_role} | message={msg[:60]}")
 
     tts_provider    = normalize_tts_provider(payload.get("tts_provider", "local"))
     vision_provider = normalize_vision_provider(payload.get("vision_provider", "openai"))
@@ -53,7 +60,8 @@ def ask():
     vision_mode     = payload.get("vision_mode")
 
     reply, audio_b64, audio_mime = process_chat(
-        msg.strip(), tts_provider, vision_provider, frontend_image, vision_mode
+        msg.strip(), tts_provider, vision_provider, frontend_image, vision_mode,
+        user_role=user_role,
     )
     return jsonify({"reply": reply, "audio_base64": audio_b64, "audio_mime": audio_mime})
 
