@@ -7,7 +7,7 @@ import tempfile
 
 from flask import Blueprint, render_template, request, jsonify
 
-from config import MAX_REQUEST_BYTES, MAX_UPLOAD_AUDIO_BYTES
+from config import MAX_REQUEST_BYTES, MAX_UPLOAD_AUDIO_BYTES, CREATOR_IPS
 from core.brain import (
     process_chat,
     get_whisper_model,
@@ -25,8 +25,7 @@ def get_real_ip() -> str:
 
 def get_user_role() -> str:
     """Return 'creator' if the request is from localhost, otherwise 'guest'."""
-    ip = get_real_ip()
-    return "creator" if ip in ("127.0.0.1", "::1") else "guest"
+    return "creator" if get_real_ip() in CREATOR_IPS else "guest"
 
 
 # ── HTML page ────────────────────────────────────────────────────────────────

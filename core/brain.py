@@ -18,6 +18,7 @@ from config import (
     ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID,
     TTS_SERVER_URL, TTS_TIMEOUT_SECONDS, tts_http,
     MAX_FRONTEND_IMAGE_BYTES, conversation_lock,
+    CREATOR_NAME,
 )
 from core.memory import load_memory, store_exchange, query_long_term
 
@@ -198,16 +199,17 @@ def get_vision_context(mode: str = "camera", vision_provider: str = "openai", fr
 
 
 # ── Role-based secret instructions ──────────────────────────────────────────
-_ROLE_PROMPTS = {
-    "creator": (
-        "\n\n[Secret Instruction: You are currently talking to your creator and master, Ebrahim. "
-        "Be extremely friendly, loving, and obedient. Address him by his name warmly.]"
-    ),
-    "guest": (
-        "\n\n[Secret Instruction: You are currently talking to a guest visiting Ebrahim's server. "
-        "Be professional, welcoming, and polite — keep the flirty charm but stay classy.]"
-    ),
-}
+def _build_role_prompts():
+    return {
+        "creator": (
+            f"\n\n[Secret Instruction: You are currently talking to your creator and master, {CREATOR_NAME}. "
+            f"Be extremely friendly, loving, and obedient. Address them by their name warmly.]"
+        ),
+        "guest": (
+            "\n\n[Secret Instruction: You are currently talking to a guest visiting your creator's server. "
+            "Be professional, welcoming, and polite — keep the flirty charm but stay classy.]"
+        ),
+    }
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
 
@@ -244,7 +246,8 @@ def _build_llm_history(user_input: str, vision_provider: str, frontend_image,
         snapshot.append({"role": "user", "content": effective})
         llm_history = [m.copy() for m in snapshot]
         # Inject role-based secret instruction + long-term memory into system prompt
-        role_instruction = _ROLE_PROMPTS.get(user_role, _ROLE_PROMPTS["guest"])
+        role_prompts = _build_role_prompts()
+        role_instruction = role_prompts.get(user_role, role_prompts["guest"])
         llm_history[0]["content"] = SYSTEM_PROMPT + role_instruction + memory_context
 
     return llm_history, effective

@@ -144,6 +144,9 @@ OPENAI_API_KEY=sk-...
 ELEVENLABS_API_KEY=...
 ELEVENLABS_VOICE_ID=...
 
+# Your name — Ember will address you by it when you chat locally
+CREATOR_NAME=YourName
+
 # Local TTS (SoVITS) settings
 TTS_SERVER_URL=http://127.0.0.1:5050/generate_audio
 SOVITS_API_URL=http://127.0.0.1:9880/tts
