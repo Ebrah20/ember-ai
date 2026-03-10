@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ember AI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app-shell">
+        <canvas id="screen-capture-canvas" style="display:none;"></canvas>
+
+        <div id="main-layout">
+            <div id="character-space">
+                <div class="character-overlay"></div>
+                <div class="character-scanlines"></div>
+                <div class="character-hud"></div>
+                <div class="hud-label">EMBER CORE</div>
+                <div class="energy-core"></div>
+                <canvas id="live2d-canvas"></canvas>
+                <div class="character-copy">
+                    <div class="character-title">Character Model</div>
+                    <div class="character-subtitle">Live2D / 3D avatar mount point</div>
+                </div>
+            </div>
+
+            <div id="chat-interface">
+                <div id="chat-toolbar">
+                    <button id="settings-btn" type="button">⚙️ Settings</button>
+                </div>
+                <div id="chat-box"></div>
+
+                <div id="input-area">
+                    <button id="auto-btn" onclick="toggleHandsFree()">🔁 Start Hands-Free</button>
+                    <div id="composer-row">
+                        <textarea id="user-input" placeholder="Type... (Enter to send, Shift+Enter for newline)" rows="3"></textarea>
+                        <button onclick="sendMessage()" style="background:#444;">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="settings-modal" aria-hidden="true">
+        <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <div class="settings-header">
+                <div id="settings-title" class="settings-title">Companion Settings</div>
+                <button id="settings-close" type="button">✕</button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-group">
+                    <div class="settings-label">Providers</div>
+                </div>
+                <div class="vision-row">
+                    <button class="vision-btn" onclick="sendVisionPrompt('Look at me', this)">👁️ Look at Me</button>
+                    <button class="vision-btn" onclick="sendVisionPrompt('Look at my screen', this)">💻 Look at My Screen</button>
+                </div>
+                <div id="provider-row">
+                    <select id="vision-provider">
+                        <option value="local">Local (Ollama LLaVA)</option>
+                        <option value="openai">OpenAI (GPT-4o-mini)</option>
+                    </select>
+                    <select id="tts-provider">
+                        <option value="local">Backend SoVITS Proxy TTS</option>
+                        <option value="elevenlabs">ElevenLabs TTS</option>
+                    </select>
+                </div>
+                <div class="settings-group">
+                    <button id="form-toggle-btn" class="vision-btn" type="button">👗 Change Form</button>
+                </div>
+                <label class="settings-toggle" for="mouse-tracking-toggle">
+                    <input id="mouse-tracking-toggle" type="checkbox">
+                    <span>Enable Mouse Tracking</span>
+                </label>
+            </div>
+        </div>
+    </div>
+    <script src="https://cubism.live2d.com/sdk-web/cubismcore/live2dcubismcore.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.2/browser/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-live2d-display@0.4.0/dist/cubism4.min.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/audio.js"></script>
+    <script src="/static/js/live2d.js"></script>
+    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

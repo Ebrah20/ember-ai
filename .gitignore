@@ -1,0 +1,31 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Virtual environment ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+
+# ── Live2D model (paid / private — do NOT share) ─────────────────────────────
+static/model/
+
+# ── Runtime data (never commit these) ────────────────────────────────────────
+data/
+*.wav
+*.mp3
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
