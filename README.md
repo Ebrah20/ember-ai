@@ -4,9 +4,9 @@ A flirty, teasing, and highly interactive AI assistant that runs locally with a 
 
 > [!IMPORTANT]
 > **This repo does NOT include the Live2D model or voice file** — these are private/paid assets.
-> You must provide your own:
-> - **Live2D model** → place it in `static/model/your-model/`
-> - **Voice reference** → place a `.wav` file in `static/audio/` and update `.env`
+> You must provide your own before running the project:
+> - 🎭 **Live2D model** → place it in `static/model/your-model/`
+> - 🎙️ **Voice reference** → place a `.wav` file in `static/audio/` and set its path in `.env`
 
 ---
 
@@ -16,7 +16,7 @@ A flirty, teasing, and highly interactive AI assistant that runs locally with a 
 |---|---------|-------------|
 | 🧠 | **Brain (DeepSeek)** | Super fast and smart responses, fine-tuned to have a playful and slightly mischievous personality |
 | 👁️ | **Eyes (Dual Vision)** | She can literally *see* your screen or webcam! Toggle between **Local LLaVA** (private & uncensored) or **OpenAI GPT-4o-mini** (fast & accurate) |
-| 🔊 | **Voice (Dual TTS)** | Seamless voice interactions — **ElevenLabs** for ultra-realistic audio, or **Local GPT-SoVITS** (100% free & private). Action tags like `*winks*` are auto-filtered for maximum immersion |
+| 🔊 | **Voice (Dual TTS)** | **ElevenLabs** for ultra-realistic cloud audio, or **Local GPT-SoVITS** (100% free & private). Action tags like `*winks*` are auto-filtered for maximum immersion |
 | 👂 | **Ears (Faster-Whisper)** | Local speech-to-text for hands-free voice conversations |
 | 🧠 | **Memory (ChromaDB)** | She remembers past conversations and inside jokes |
 | 🎭 | **Avatar (Live2D + PixiJS)** | Not a static model! Custom parameter injection lets her swap outfits without breaking facial expressions. Her text is parsed in real-time — type 😉 and she actually winks. Custom lerp mouse-tracking for buttery-smooth eye contact |
@@ -54,20 +54,25 @@ Ember_Project/
 │   ├── js/                 ← ui, audio, live2d, chat, app modules
 │   └── model/              ← ⚠️ Add your Live2D model here (not included)
 ├── templates/index.html
-├── data/                   ← Runtime data (gitignored)
-├── .env                    ← API keys (gitignored)
+├── data/                   ← Auto-created at runtime (gitignored)
+├── .env                    ← Your API keys (gitignored)
 ├── requirements.txt
 └── start_ember.bat         ← One-click launch (Windows)
 ```
 
 ---
 
-## ⚙️ Setup
+## ⚙️ Full Setup Guide
 
-### 1. Create & activate virtual environment
+### Step 1 — Clone & create virtual environment
+
 ```bash
+git clone https://github.com/Ebrah20/ember-ai.git
+cd ember-ai
 python -m venv .venv
 ```
+
+Activate it:
 ```powershell
 # Windows
 .venv\Scripts\activate
@@ -76,51 +81,70 @@ python -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
 ```
-> You'll see `(.venv)` in your terminal — always activate it before running the project.
+> ✅ You'll see `(.venv)` in your terminal. **Always activate it before running the project.**
 
 ---
 
-### 2. Install dependencies
+### Step 2 — Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ---
 
-### 3. Add your assets ⚠️
+### Step 3 — Add your Live2D model ⚠️
 
-**Live2D Model:**
-- Place your model folder inside `static/model/`
-- Update the model path in `static/js/live2d.js`:
-```js
-// Find this line and change the path to your model:
-live2dModel = await PIXI.live2d.Live2DModel.from('/static/model/YOUR-MODEL/YOUR-MODEL.model3.json');
-```
+1. Place your model folder inside `static/model/`
+   ```
+   static/model/YOUR-MODEL/
+   ├── YOUR-MODEL.model3.json
+   ├── textures/
+   └── ...
+   ```
 
-**Voice Reference (for GPT-SoVITS):**
-- Place your `.wav` reference audio in `static/audio/`
-- Update `SOVITS_REF_AUDIO_PATH` in `.env`
-
----
-
-### 4. Setup GPT-SoVITS v3 (Local TTS)
-
-1. Download **[GPT-SoVITS-v3lora-20250228](https://github.com/RVC-Boss/GPT-SoVITS/releases)**
-2. Launch the API server (default port `9880`)
-3. Configure `.env`:
-```env
-SOVITS_API_URL=http://127.0.0.1:9880/tts
-SOVITS_REF_AUDIO_PATH=static/audio/your-voice.wav
-```
+2. Open `static/js/live2d.js` and find this line (~line 260):
+   ```js
+   live2dModel = await PIXI.live2d.Live2DModel.from('/static/model/ebrah/ebrah.model3.json');
+   ```
+   Change it to match your model path:
+   ```js
+   live2dModel = await PIXI.live2d.Live2DModel.from('/static/model/YOUR-MODEL/YOUR-MODEL.model3.json');
+   ```
 
 ---
 
-### 5. Configure `.env`
+### Step 4 — Setup GPT-SoVITS (Local TTS) ⚠️
+
+> Skip this step if you plan to use **ElevenLabs** cloud TTS only.
+
+1. Download GPT-SoVITS from the official repo:
+   👉 **[github.com/RVC-Boss/GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)**
+
+2. Follow the installation instructions in that repo and launch the API server (default port: `9880`)
+
+3. Place your voice reference `.wav` file in `static/audio/`
+
+4. Set the path in `.env` (see Step 5)
+
+---
+
+### Step 5 — Configure `.env`
+
+Create a file named `.env` in the project root:
+
 ```env
+# Required
 DEEPSEEK_API_KEY=sk-...
-OPENAI_API_KEY=sk-...              # Optional, for vision
-ELEVENLABS_API_KEY=...             # Optional, for cloud TTS
+
+# Optional — for screen/camera vision
+OPENAI_API_KEY=sk-...
+
+# Optional — choose ElevenLabs OR local SoVITS
+ELEVENLABS_API_KEY=...
 ELEVENLABS_VOICE_ID=...
+
+# Local TTS (SoVITS) settings
 TTS_SERVER_URL=http://127.0.0.1:5050/generate_audio
 SOVITS_API_URL=http://127.0.0.1:9880/tts
 SOVITS_REF_AUDIO_PATH=static/audio/your-voice.wav
@@ -128,30 +152,20 @@ SOVITS_REF_AUDIO_PATH=static/audio/your-voice.wav
 
 ---
 
-### 6. Run
+### Step 6 — Run
 
 **Windows (one click)**
 ```
 start_ember.bat
 ```
 
-**Manual**
+**Manual (two terminals)**
 ```bash
-# Terminal 1 — TTS proxy (if using local SoVITS)
+# Terminal 1 — Local TTS proxy (skip if using ElevenLabs)
 python tts_server.py
 
 # Terminal 2 — Main app
 python app.py
 ```
 
-Open **http://localhost:5000** in your browser.
-
----
-
-## 🌐 Share via Ngrok
-
-```bash
-ngrok http 5000 --host-header="localhost:5000"
-```
-
-All API calls use relative paths — zero configuration changes needed.
+Open **[http://localhost:5000](http://localhost:5000)** in your browser. 🎉
