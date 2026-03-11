@@ -12,6 +12,7 @@ from flask import Blueprint, render_template, request, jsonify, Response, stream
 from config import MAX_REQUEST_BYTES, MAX_UPLOAD_AUDIO_BYTES, CREATOR_IPS
 from core.brain import (
     process_chat,
+    process_chat_stream,
     get_whisper_model,
     normalize_tts_provider,
     normalize_vision_provider,
@@ -80,8 +81,32 @@ def ask():
 
 @api_bp.route("/ask_stream", methods=["POST"])
 def ask_stream():
-    """Backward-compatible alias."""
-    return ask()
+    """SSE streaming version — streams chunks as {type, text, audio_base64, audio_mime}."""
+    payload = request.get_json(silent=True) or {}
+    msg = payload.get("message")
+    if not isinstance(msg, str) or not msg.strip():
+        return jsonify({"error": "message must be a non-empty string"}), 400
+
+    user_role       = get_user_role()
+    tts_provider    = normalize_tts_provider(payload.get("tts_provider", "local"))
+    vision_provider = normalize_vision_provider(payload.get("vision_provider", "openai"))
+    frontend_image  = payload.get("frontend_image")
+    vision_mode     = payload.get("vision_mode")
+
+    print(f"[/ask_stream] IP={get_real_ip()} | role={user_role} | msg={msg[:60]}")
+
+    def generate():
+        for event in process_chat_stream(
+            msg.strip(), tts_provider, vision_provider,
+            frontend_image, vision_mode, user_role=user_role,
+        ):
+            yield f"data: {json.dumps(event)}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # ── /transcribe ───────────────────────────────────────────────────────────────

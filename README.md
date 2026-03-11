@@ -1,6 +1,6 @@
 # 🌟 Ember — A Multimodal Sassy & Playful AI Waifu (Web UI) 🌟
 
-A flirty, teasing, and highly interactive AI assistant that runs locally with a custom web interface. Ember combines a smart AI brain, dual vision modes, real-time voice, and an animated Live2D avatar — all in your browser.
+A brilliant, tech-savvy AI companion that runs locally with a custom web interface. Ember combines a smart AI brain, dual vision modes, real-time voice, a Live2D avatar, and a **Gamer Mode** that watches your game and comments in real time — all in your browser.
 
 > [!IMPORTANT]
 > **This repo does NOT include the Live2D model or voice file** — these are private/paid assets.
@@ -14,12 +14,13 @@ A flirty, teasing, and highly interactive AI assistant that runs locally with a 
 
 | | Feature | Description |
 |---|---------|-------------|
-| 🧠 | **Brain (DeepSeek)** | Super fast and smart responses, fine-tuned to have a playful and slightly mischievous personality |
+| 🧠 | **Brain (DeepSeek)** | Super fast and smart responses with a warm, witty, and geeky personality |
 | 👁️ | **Eyes (Dual Vision)** | She can literally *see* your screen or webcam! Toggle between **Local LLaVA** (private & uncensored) or **OpenAI GPT-4o-mini** (fast & accurate) |
 | 🔊 | **Voice (Dual TTS)** | **ElevenLabs** for ultra-realistic cloud audio, or **Local GPT-SoVITS** (100% free & private). Action tags like `*winks*` are auto-filtered for maximum immersion |
 | 👂 | **Ears (Faster-Whisper)** | Local speech-to-text for hands-free voice conversations |
 | 🧠 | **Memory (ChromaDB)** | She remembers past conversations and inside jokes |
-| 🎭 | **Avatar (Live2D + PixiJS)** | Not a static model! Custom parameter injection lets her swap outfits without breaking facial expressions. Her text is parsed in real-time — type 😉 and she actually winks. Custom lerp mouse-tracking for buttery-smooth eye contact |
+| 🎮 | **Gamer Mode** | OBS-style targeted window capture — she watches **only your game window** (works on ultrawide monitors!), analyses it every ~18s, and gives witty live commentary via voice |
+| 🎭 | **Avatar (Live2D + PixiJS)** | Not a static model! Custom parameter injection, outfit swapping, real-time wink detection, and lerp mouse-tracking for buttery-smooth eye contact |
 
 ---
 
@@ -32,6 +33,7 @@ A flirty, teasing, and highly interactive AI assistant that runs locally with a 
 | **VLM** | Ollama (LLaVA), OpenAI API |
 | **TTS** | ElevenLabs, GPT-SoVITS |
 | **STT** | Faster-Whisper |
+| **Gamer Mode** | pygetwindow + mss + Pillow |
 | **Frontend / UI** | Vanilla JS, PixiJS, Live2D Cubism SDK |
 
 ---

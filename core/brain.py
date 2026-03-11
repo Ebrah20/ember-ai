@@ -328,3 +328,102 @@ def process_chat(user_input: str, tts_provider: str = "local", vision_provider: 
         clean = clean_spoken_text(fallback)
         audio_b64, audio_mime = build_audio_base64(clean, tts_provider) if clean else (None, None)
         return fallback, audio_b64, audio_mime
+
+
+# Alias used by gamer_tts and other callers
+def _generate_tts(text: str, tts_provider: str):
+    return build_audio_base64(clean_spoken_text(text), tts_provider)
+
+
+# ── Streaming LLM + chunked TTS ───────────────────────────────────────────────
+
+# Sentence-boundary characters used to flush TTS chunks early
+_SENT_END = frozenset(".?!。？！…\n")
+_MIN_CHUNK_LEN = 30   # don't flush shorter partial sentences
+
+
+def process_chat_stream(user_input: str, tts_provider: str = "local",
+                        vision_provider: str = "openai",
+                        frontend_image=None, forced_vision_mode=None,
+                        user_role: str = "guest"):
+    """
+    Generator that yields dicts as soon as each sentence chunk is ready:
+        {"type": "chunk",  "text": str, "audio_base64": str|None, "audio_mime": str|None}
+        {"type": "done",   "full_text": str}
+        {"type": "error",  "message": str}
+
+    The caller (SSE route) serialises these to JSON and streams them to the browser.
+    """
+    tts_provider    = normalize_tts_provider(tts_provider)
+    vision_provider = normalize_vision_provider(vision_provider)
+
+    try:
+        llm_history, effective_input = _build_llm_history(
+            user_input, vision_provider, frontend_image, forced_vision_mode,
+            user_role=user_role,
+        )
+    except Exception as e:
+        yield {"type": "error", "message": str(e)}
+        return
+
+    full_reply = ""
+    buffer     = ""
+
+    def flush_chunk(text: str):
+        """Generate TTS for one sentence chunk and return a payload dict."""
+        nonlocal full_reply
+        full_reply += text
+        clean = clean_spoken_text(text)
+        if clean:
+            audio_b64, audio_mime = build_audio_base64(clean, tts_provider)
+        else:
+            audio_b64, audio_mime = None, None
+        return {
+            "type":         "chunk",
+            "text":         text,
+            "audio_base64": audio_b64,
+            "audio_mime":   audio_mime or "audio/wav",
+        }
+
+    try:
+        print("[Stream] DeepSeek is streaming...")
+        stream = deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=llm_history,
+            stream=True,
+            timeout=120,
+        )
+
+        for chunk in stream:
+            delta = (chunk.choices[0].delta.content or "") if chunk.choices else ""
+            if not delta:
+                continue
+            buffer += delta
+
+            # Flush when we hit a sentence boundary AND have enough text
+            if buffer[-1] in _SENT_END and len(buffer) >= _MIN_CHUNK_LEN:
+                yield flush_chunk(buffer)
+                buffer = ""
+
+            # Force-flush very long buffers (no punctuation in a while)
+            elif len(buffer) >= 200:
+                yield flush_chunk(buffer)
+                buffer = ""
+
+        # Flush any remaining text
+        if buffer.strip():
+            yield flush_chunk(buffer)
+
+    except Exception as e:
+        print(f"[Stream] LLM error: {e}")
+        fallback = "Something went wrong — please try again."
+        yield {"type": "error", "message": fallback}
+        return
+
+    # Persist the full exchange to memory
+    try:
+        store_exchange(effective_input, full_reply.strip())
+    except Exception:
+        pass
+
+    yield {"type": "done", "full_text": full_reply.strip()}
