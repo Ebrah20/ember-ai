@@ -30,6 +30,11 @@ CREATOR_IPS  = {"127.0.0.1", "::1"}
 GAMER_MODE_TARGET_WINDOW = os.getenv("GAMER_MODE_TARGET_WINDOW", "Hearts of Iron IV")
 GAMER_MODE_INTERVAL      = int(os.getenv("GAMER_MODE_INTERVAL", "18"))  # seconds
 
+# ── Smart Home (Alexa) ────────────────────────────────────────────────
+ALEXA_EMAIL    = os.getenv("ALEXA_EMAIL",    "")
+ALEXA_PASSWORD = os.getenv("ALEXA_PASSWORD", "")
+ALEXA_URL      = os.getenv("ALEXA_URL",      "amazon.com")  # or amazon.co.uk
+
 if DEEPSEEK_API_KEY == "sk-place_your_key_here":
     print("WARNING: DEEPSEEK_API_KEY is not configured.")
 

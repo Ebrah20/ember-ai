@@ -22,5 +22,8 @@ pygetwindow>=0.0.9
 mss>=9.0.1
 Pillow>=10.0.0
 
+# ── Smart Home (Alexa) ────────────────────────────────────────────────────────
+alexapy>=1.27.0
+
 # ── Camera vision (optional) ──────────────────────────────────────────────────
 # opencv-python>=4.9.0   # Uncomment if you use camera mode

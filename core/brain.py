@@ -21,6 +21,8 @@ from config import (
     CREATOR_NAME,
 )
 from core.memory import load_memory, store_exchange, query_long_term
+from core.smart_home import execute_command as sh_execute, SMART_HOME_TOOL
+from core.claude_code import detect_code_command, run_claude_code
 
 try:
     import cv2
@@ -298,6 +300,16 @@ def process_chat(user_input: str, tts_provider: str = "local", vision_provider: 
                  frontend_image=None, forced_vision_mode=None, user_role: str = "guest"):
     tts_provider    = normalize_tts_provider(tts_provider)
     vision_provider = normalize_vision_provider(vision_provider)
+
+    # ── Claude Code: !code prefix ─────────────────────────────────────────────
+    is_code, code_prompt = detect_code_command(user_input)
+    if is_code:
+        spoken, full_output = run_claude_code(code_prompt)
+        tts_text = clean_spoken_text(spoken)
+        audio_b64, audio_mime = build_audio_base64(tts_text, tts_provider) if tts_text else (None, None)
+        reply = f"**Claude Code:**\n```\n{full_output}\n```\n\n*{spoken}*" if full_output else spoken
+        return reply, audio_b64, audio_mime
+
     try:
         llm_history, effective_input = _build_llm_history(
             user_input, vision_provider, frontend_image, forced_vision_mode,
@@ -308,14 +320,33 @@ def process_chat(user_input: str, tts_provider: str = "local", vision_provider: 
             resp = deepseek_client.chat.completions.create(
                 model="deepseek-chat",
                 messages=llm_history,
+                tools=[SMART_HOME_TOOL],
+                tool_choice="auto",
                 stream=False,
                 timeout=120,
             )
-            full_reply = (resp.choices[0].message.content or "").strip()
-            print(full_reply)
+            msg = resp.choices[0].message
+
+            # ── Smart Home tool call ──────────────────────────────────────────
+            if msg.tool_calls:
+                import json
+                tc   = msg.tool_calls[0]
+                args = json.loads(tc.function.arguments)
+                result_text = sh_execute(
+                    action=args.get("action", "query"),
+                    device=args.get("device", ""),
+                    room=args.get("room", "all"),
+                    value=args.get("value"),
+                )
+                full_reply = result_text
+                print(f"[SmartHome] {result_text}")
+            else:
+                full_reply = (msg.content or "").strip()
+                print(full_reply)
+
         except Exception as e:
             print(f"DEEPSEEK ERROR: {e}")
-            full_reply = "*pouts* Oops, my brain just glitched! Can you repeat that, cutie?"
+            full_reply = "*sighs* Oops, my brain just glitched! Can you repeat that?"
 
         clean_reply = clean_spoken_text(full_reply)
         audio_b64, audio_mime = build_audio_base64(clean_reply, tts_provider) if clean_reply else (None, None)

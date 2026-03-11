@@ -210,18 +210,30 @@ function setEmberTalking(isTalking) {
     if (!live2dModel) return;
     if (!isTalking) {
         if (talkingIntervalId) { clearInterval(talkingIntervalId); talkingIntervalId = null; }
-        const core = getCoreModel();
-        const mouthIdx = core?.getParameterIndex?.('ParamMouthOpenY');
-        if (core && typeof mouthIdx === 'number' && mouthIdx >= 0) core.setParameterValueByIndex(mouthIdx, 0);
+        // If real lip sync is available, stop it; otherwise close mouth manually
+        if (window.EmberLipSync) {
+            window.EmberLipSync.stop();
+        } else {
+            const core = getCoreModel();
+            const mouthIdx = core?.getParameterIndex?.('ParamMouthOpenY');
+            if (core && typeof mouthIdx === 'number' && mouthIdx >= 0)
+                core.setParameterValueByIndex(mouthIdx, 0);
+        }
         return;
     }
-    if (talkingIntervalId) clearInterval(talkingIntervalId);
-    const core = getCoreModel();
-    const mouthIdx = core?.getParameterIndex?.('ParamMouthOpenY');
-    if (!core || typeof mouthIdx !== 'number' || mouthIdx < 0) return;
-    talkingIntervalId = setInterval(() => {
-        core.setParameterValueByIndex(mouthIdx, 0.2 + Math.random() * 0.75);
-    }, 90);
+    if (window.EmberLipSync) {
+        // Real frequency-based lip sync (started by chat.js when audio element is ready)
+        window.EmberLipSync.start();
+    } else {
+        // Fallback: random mouth animation
+        if (talkingIntervalId) clearInterval(talkingIntervalId);
+        const core = getCoreModel();
+        const mouthIdx = core?.getParameterIndex?.('ParamMouthOpenY');
+        if (!core || typeof mouthIdx !== 'number' || mouthIdx < 0) return;
+        talkingIntervalId = setInterval(() => {
+            core.setParameterValueByIndex(mouthIdx, 0.2 + Math.random() * 0.75);
+        }, 90);
+    }
 }
 
 function triggerReplyAnimation(replyText) {

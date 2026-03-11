@@ -35,22 +35,27 @@ function _playAndContinue(b64, mime, text) {
         const url    = URL.createObjectURL(blob);
         const audio  = new Audio(url);
 
-        // Sync lip anim if live2d available
-        if (typeof setLipSync === 'function') setLipSync(true);
+        // ── Real Lip Sync ──────────────────────────────────────────────────
+        if (window.EmberLipSync) {
+            window.EmberLipSync.connectAudio(audio);
+        }
+        // Sync Live2D talking state
+        if (typeof setEmberTalking === 'function') setEmberTalking(true);
 
         audio.onended = () => {
             URL.revokeObjectURL(url);
-            if (typeof setLipSync === 'function') setLipSync(false);
+            if (typeof setEmberTalking === 'function') setEmberTalking(false);
             _drainAudioQueue();
         };
         audio.onerror = () => {
             URL.revokeObjectURL(url);
-            if (typeof setLipSync === 'function') setLipSync(false);
+            if (typeof setEmberTalking === 'function') setEmberTalking(false);
             _drainAudioQueue();
         };
         audio.play().catch(() => _drainAudioQueue());
     } catch (e) {
         console.error('[AudioQueue] play error:', e);
+        if (typeof setEmberTalking === 'function') setEmberTalking(false);
         _drainAudioQueue();
     }
 }
