@@ -194,6 +194,15 @@ def gamer_mode_status():
     return jsonify(gamer_instance.status())
 
 
+@api_bp.route("/api/gamer_mode/debug", methods=["GET"])
+def gamer_mode_debug():
+    """Instant one-shot capture — returns window list + screenshot for debugging."""
+    if gamer_instance is None:
+        return jsonify({"error": "GamerMode not initialised"}), 503
+    result = gamer_instance.debug_capture()
+    return jsonify(result)
+
+
 @api_bp.route("/api/gamer_stream", methods=["GET"])
 def gamer_stream():
     """SSE endpoint — pushes {text, audio_base64, audio_mime} when Ember has a comment."""

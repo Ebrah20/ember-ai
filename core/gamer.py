@@ -7,13 +7,15 @@ Architecture:
   _analysis_loop()       → every INTERVAL seconds:
                              1. find + capture target window
                              2. send to Vision model
-                             3. if not [IGNORE] → TTS → push to SSE queue
+                             3. always produce a comment → TTS → push to SSE queue
 """
 
 import base64
 import io
+import os
 import threading
 import time
+from datetime import datetime
 from queue import Empty, Queue
 
 try:
@@ -37,13 +39,14 @@ except ImportError:
 
 # ── Gamer Mode vision prompt ──────────────────────────────────────────────────
 _GAMER_PROMPT = (
-    "You are Ember, a brilliant, sarcastic, and tech-savvy gamer companion. "
-    "You are watching the user play a game. Analyze this screenshot carefully.\n"
-    "RULE 1: If nothing important or interesting is happening, reply with ONLY the single word: [IGNORE]\n"
-    "RULE 2: If there is a major event (low health, a strategic decision, a funny mistake, a big achievement, "
-    "or something worth commenting on), reply with ONE short, witty, sarcastic, or helpful sentence. "
-    "No asterisks. No greetings. Just the comment."
+    "أنتِ Ember، مرافقة ذكاء اصطناعي ساخرة وذكية تراقب شخصاً يلعب لعبة فيديو.\n"
+    "انظري إلى هذه اللقطة وقدّمي تعليقاً واحداً قصيراً (جملة أو جملتان).\n"
+    "يجب أن تقولي شيئاً دائماً — لا تصمتي أبداً.\n"
+    "IMPORTANT: You MUST respond in Arabic (العربية) always, no matter what.\n"
+    "لألعاب الاستراتيجية مثل Hearts of Iron IV، علّقي على الدولة أو شجرة التركيز أو الحروب أو القرارات.\n"
+    "كوني مبدعة أو مضحكة أو مفيدة. بدون نجوم. بدون تحيات. فقط التعليق."
 )
+
 
 
 class GamerMode:
@@ -98,6 +101,39 @@ class GamerMode:
             "libs_ok": _HAS_GW and _HAS_MSS and _HAS_PIL,
         }
 
+    def debug_capture(self) -> dict:
+        """
+        One-time instant capture for debugging.
+        Returns window bbox, all visible windows, and the screenshot.
+        """
+        # List all open window titles so user can see what's detected
+        all_titles = []
+        if _HAS_GW:
+            try:
+                all_titles = [w.title for w in gw.getAllWindows() if w.title.strip()]
+            except Exception:
+                all_titles = ["error reading windows"]
+
+        bbox = self._find_window()
+        if not bbox:
+            return {
+                "found": False,
+                "target": self.target_window,
+                "all_windows": all_titles,
+                "message": f"Window '{self.target_window}' not found or minimized.",
+            }
+
+        left, top, width, height = bbox
+        img_b64 = self._capture_window(left, top, width, height)
+        return {
+            "found": True,
+            "target": self.target_window,
+            "bbox": {"left": left, "top": top, "width": width, "height": height},
+            "all_windows": all_titles,
+            "screenshot_b64": img_b64,
+            "message": f"Successfully captured '{self.target_window}' ({width}x{height})",
+        }
+
     # ── Window capture ─────────────────────────────────────────────────────────
 
     def _find_window(self):
@@ -118,7 +154,7 @@ class GamerMode:
             return None
 
     def _capture_window(self, left, top, width, height) -> str | None:
-        """Capture the given bounding box and return a JPEG base64 string."""
+        """Capture the given bounding box, save to disk, and return a JPEG base64 string."""
         if not (_HAS_MSS and _HAS_PIL):
             return None
         try:
@@ -130,6 +166,17 @@ class GamerMode:
             max_dim = 1280
             if img.width > max_dim or img.height > max_dim:
                 img.thumbnail((max_dim, max_dim), Image.LANCZOS)
+            # ── Save screenshot to disk ──────────────────────────────────────
+            try:
+                save_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vision_captures")
+                os.makedirs(save_dir, exist_ok=True)
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                save_path = os.path.join(save_dir, f"gamer_{ts}.jpg")
+                img.save(save_path, format="JPEG", quality=85)
+                print(f"[GamerMode] screenshot saved → {save_path}")
+            except Exception as save_err:
+                print(f"[GamerMode] screenshot save error: {save_err}")
+            # ────────────────────────────────────────────────────────────────
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=85)
             return base64.b64encode(buf.getvalue()).decode()
