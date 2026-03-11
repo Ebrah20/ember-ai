@@ -3,9 +3,11 @@ routes/api.py — All Flask HTTP routes for Ember AI.
 """
 
 import os
+import json
+import time
 import tempfile
 
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, Response, stream_with_context
 
 from config import MAX_REQUEST_BYTES, MAX_UPLOAD_AUDIO_BYTES, CREATOR_IPS
 from core.brain import (
@@ -13,6 +15,8 @@ from core.brain import (
     get_whisper_model,
     normalize_tts_provider,
     normalize_vision_provider,
+    gamer_vision,
+    gamer_tts,
 )
 
 api_bp = Blueprint("api", __name__)
@@ -140,3 +144,53 @@ def transcribe():
 def transcribe_stream():
     """Backward-compatible alias."""
     return transcribe()
+
+
+# ── Gamer Mode ────────────────────────────────────────────────────────────────
+# gamer_instance is set by app.py after create_app() instantiates GamerMode.
+gamer_instance = None
+
+
+@api_bp.route("/api/gamer_mode", methods=["POST"])
+def gamer_mode_toggle():
+    """Toggle Gamer Mode on or off.  Body: {"active": true|false}"""
+    if gamer_instance is None:
+        return jsonify({"error": "GamerMode not initialised"}), 503
+    payload = request.get_json(silent=True) or {}
+    active = bool(payload.get("active", False))
+    gamer_instance.set_active(active)
+    return jsonify({"ok": True, "active": active})
+
+
+@api_bp.route("/api/gamer_mode/status", methods=["GET"])
+def gamer_mode_status():
+    if gamer_instance is None:
+        return jsonify({"error": "GamerMode not initialised"}), 503
+    return jsonify(gamer_instance.status())
+
+
+@api_bp.route("/api/gamer_stream", methods=["GET"])
+def gamer_stream():
+    """SSE endpoint — pushes {text, audio_base64, audio_mime} when Ember has a comment."""
+    if gamer_instance is None:
+        return jsonify({"error": "GamerMode not initialised"}), 503
+
+    def event_generator():
+        yield "data: {\"ping\": true}\n\n"  # keep-alive on connect
+        while True:
+            try:
+                payload = gamer_instance.event_queue.get(timeout=30)
+                data = json.dumps(payload)
+                yield f"data: {data}\n\n"
+            except Exception:
+                # timeout — send heartbeat to keep connection alive
+                yield "data: {\"ping\": true}\n\n"
+
+    return Response(
+        stream_with_context(event_generator()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control":   "no-cache",
+            "X-Accel-Buffering": "no",   # disable nginx/cloudflare buffering
+        },
+    )

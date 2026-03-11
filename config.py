@@ -24,7 +24,11 @@ OPENAI_API_KEY      = os.getenv("OPENAI_API_KEY", "")
 
 # ── Creator Identity ──────────────────────────────────────────────────────────
 CREATOR_NAME = os.getenv("CREATOR_NAME", "my creator")
-CREATOR_IPS  = {"127.0.0.1", "::1"}  # Requests from these IPs = creator
+CREATOR_IPS  = {"127.0.0.1", "::1"}
+
+# ── Gamer Mode ────────────────────────────────────────────────────────────────
+GAMER_MODE_TARGET_WINDOW = os.getenv("GAMER_MODE_TARGET_WINDOW", "Hearts of Iron IV")
+GAMER_MODE_INTERVAL      = int(os.getenv("GAMER_MODE_INTERVAL", "18"))  # seconds
 
 if DEEPSEEK_API_KEY == "sk-place_your_key_here":
     print("WARNING: DEEPSEEK_API_KEY is not configured.")

@@ -198,6 +198,45 @@ def get_vision_context(mode: str = "camera", vision_provider: str = "openai", fr
         return "[System Note: Ember's eyes just saw this -> vision capture failed]"
 
 
+# ── Gamer Mode helpers ────────────────────────────────────────────────────────
+
+_GAMER_VISION_PROMPT = (
+    "You are Ember, a brilliant, sarcastic, and tech-savvy gamer companion. "
+    "You are watching the user play a game. Analyze this screenshot carefully.\n"
+    "RULE 1: If nothing important or interesting is happening, reply with ONLY: [IGNORE]\n"
+    "RULE 2: If there is a notable event (low health, strategic decision, funny mistake, big achievement), "
+    "reply with ONE short, witty, sarcastic, or helpful sentence. No asterisks. No greetings."
+)
+
+
+def gamer_vision(image_b64: str, vision_provider: str = "openai") -> str:
+    """Analyse a base64 game screenshot. Returns a comment string or '[IGNORE]'."""
+    vision_provider = normalize_vision_provider(vision_provider)
+    client     = openai_client if vision_provider == "openai" else ollama_client
+    model_name = "gpt-4o-mini"  if vision_provider == "openai" else "llava"
+    if client is None:
+        return "[IGNORE]"
+    try:
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": [
+                {"type": "text",      "text": _GAMER_VISION_PROMPT},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+            ]}],
+            max_tokens=120,
+            timeout=30,
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        print(f"[GamerVision] error: {e}")
+        return "[IGNORE]"
+
+
+def gamer_tts(text: str, tts_provider: str = "local"):
+    """Convert a gamer comment to audio. Returns (audio_b64, mime_type)."""
+    return _generate_tts(text, normalize_tts_provider(tts_provider))
+
+
 # ── Role-based secret instructions ──────────────────────────────────────────
 def _build_role_prompts():
     return {
