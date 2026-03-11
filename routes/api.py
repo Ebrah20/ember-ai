@@ -19,13 +19,22 @@ api_bp = Blueprint("api", __name__)
 
 
 def get_real_ip() -> str:
-    """Return the real client IP. ProxyFix in app.py handles X-Forwarded-For automatically."""
-    return request.remote_addr or "unknown"
+    """
+    Return the real client IP.
+    - Behind Cloudflare Tunnel: CF-Connecting-IP header holds the real public IP.
+    - Direct localhost access: falls back to request.remote_addr (127.0.0.1).
+    """
+    return request.headers.get("CF-Connecting-IP") or request.remote_addr or "unknown"
 
 
 def get_user_role() -> str:
-    """Return 'creator' if the request is from localhost, otherwise 'guest'."""
-    return "creator" if get_real_ip() in CREATOR_IPS else "guest"
+    """
+    Creator  = accessing directly from localhost (no Cloudflare header present).
+    Guest    = any request arriving through Cloudflare Tunnel (CF-Connecting-IP present).
+    """
+    if request.headers.get("CF-Connecting-IP"):
+        return "guest"
+    return "creator" if (request.remote_addr or "") in CREATOR_IPS else "guest"
 
 
 # ── HTML page ────────────────────────────────────────────────────────────────
