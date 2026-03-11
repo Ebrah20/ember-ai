@@ -202,16 +202,31 @@ def get_vision_context(mode: str = "camera", vision_provider: str = "openai", fr
 
 # ── Gamer Mode helpers ────────────────────────────────────────────────────────
 
-_GAMER_VISION_PROMPT = (
-    "You are Ember, a brilliant, sarcastic, and tech-savvy gamer companion. "
-    "You are watching the user play a game. Analyze this screenshot carefully.\n"
-    "RULE 1: If nothing important or interesting is happening, reply with ONLY: [IGNORE]\n"
-    "RULE 2: If there is a notable event (low health, strategic decision, funny mistake, big achievement), "
-    "reply with ONE short, witty, sarcastic, or helpful sentence. No asterisks. No greetings."
-)
+def get_gamer_vision_prompt(language: str = "Arabic") -> str:
+    """Build a dynamic, deep-analysis vision prompt for Ember in the target language."""
+    return (
+        f"You are Ember, a witty, sarcastic, and brilliant AI gaming companion watching my screen.\n"
+        f"The red/yellow crosshair in the image shows exactly where my mouse/focus is pointing.\n"
+        f"\n"
+        f"RULE 1 (Deep Analysis): IF I am hovering over, selecting, or pointing at a UI element, "
+        f"menu item, game event, button, focus tree node, tech, unit, country, or choice: "
+        f"READ the actual on-screen text and stats carefully. "
+        f"Briefly EXPLAIN in 1-2 sentences what this choice actually DOES in the game mechanics, "
+        f"then give your snarky take on whether I should pick it.\n"
+        f"\n"
+        f"RULE 2 (Active Gameplay): IF there is active gameplay happening—combat, building, exploring, "
+        f"a funny mistake, danger, an achievement, or something clearly changing on screen—"
+        f"make ONE short, funny, or encouraging comment about what is happening right now.\n"
+        f"\n"
+        f"RULE 3 (Silence is Golden): IF the screen is totally boring—a loading screen, a completely "
+        f"static empty map, a pause menu, or I am just walking/existing with nothing happening—"
+        f"reply EXACTLY with the single word: [IGNORE]. Do NOT add any punctuation or other text to it.\n"
+        f"\n"
+        f"RULE 4 (Language): You MUST respond entirely in {language}. No exceptions."
+    )
 
 
-def gamer_vision(image_b64: str, vision_provider: str = "openai") -> str:
+def gamer_vision(image_b64: str, vision_provider: str = "openai", language: str = "Arabic") -> str:
     """Analyse a base64 game screenshot. Returns a comment string or '[IGNORE]'."""
     vision_provider = normalize_vision_provider(vision_provider)
     client     = openai_client if vision_provider == "openai" else ollama_client
@@ -222,10 +237,10 @@ def gamer_vision(image_b64: str, vision_provider: str = "openai") -> str:
         resp = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": [
-                {"type": "text",      "text": _GAMER_VISION_PROMPT},
+                {"type": "text",      "text": get_gamer_vision_prompt(language)},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
             ]}],
-            max_tokens=120,
+            max_tokens=150,
             timeout=30,
         )
         return (resp.choices[0].message.content or "").strip()
@@ -234,9 +249,14 @@ def gamer_vision(image_b64: str, vision_provider: str = "openai") -> str:
         return "[IGNORE]"
 
 
-def gamer_tts(text: str, tts_provider: str = "local"):
+
+def gamer_tts(text: str, tts_provider: str = "elevenlabs"):
     """Convert a gamer comment to audio. Returns (audio_b64, mime_type)."""
-    return _generate_tts(text, normalize_tts_provider(tts_provider))
+    if tts_provider == "elevenlabs" and ELEVENLABS_API_KEY:
+        provider = "elevenlabs"
+    else:
+        provider = "local"
+    return _generate_tts(text, provider)
 
 
 # ── Role-based secret instructions ──────────────────────────────────────────

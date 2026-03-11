@@ -11,6 +11,7 @@ Architecture:
 """
 
 import base64
+import ctypes
 import io
 import os
 import threading
@@ -31,26 +32,32 @@ except ImportError:
     _HAS_MSS = False
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageDraw
     _HAS_PIL = True
 except ImportError:
+    Image = None
+    ImageDraw = None
     _HAS_PIL = False
+
+# ── Mouse Tracking (Windows) ────────────────────────────────────────────────
+class POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+def _get_mouse_pos():
+    pt = POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+    return pt.x, pt.y
 
 
 # ── Gamer Mode vision prompt ──────────────────────────────────────────────────
-_GAMER_PROMPT = (
-    "أنتِ Ember، مرافقة ذكاء اصطناعي ساخرة وذكية تراقب شخصاً يلعب لعبة فيديو.\n"
-    "انظري إلى هذه اللقطة وقدّمي تعليقاً واحداً قصيراً (جملة أو جملتان).\n"
-    "يجب أن تقولي شيئاً دائماً — لا تصمتي أبداً.\n"
-    "IMPORTANT: You MUST respond in Arabic (العربية) always, no matter what.\n"
-    "لألعاب الاستراتيجية مثل Hearts of Iron IV، علّقي على الدولة أو شجرة التركيز أو الحروب أو القرارات.\n"
-    "كوني مبدعة أو مضحكة أو مفيدة. بدون نجوم. بدون تحيات. فقط التعليق."
-)
-
+# NOTE: Now provided dynamically by brain.get_gamer_vision_prompt(language).
+# This local prompt is kept for fallback reference only.
+_GAMER_PROMPT = "Gamer Mode active."  # unused — see brain.py
 
 
 class GamerMode:
     """Singleton-style class that owns the capture thread and SSE event queue."""
+
 
     def __init__(self, target_window: str, interval: int, vision_fn, tts_fn):
         """
@@ -64,6 +71,7 @@ class GamerMode:
         self.interval      = interval
         self._vision_fn    = vision_fn
         self._tts_fn       = tts_fn
+        self._language     = "Arabic"   # default, changeable via set_active()
 
         self._active = False
         self._lock   = threading.Lock()
@@ -83,11 +91,12 @@ class GamerMode:
         self._thread.start()
         print("[GamerMode] background thread started.")
 
-    def set_active(self, active: bool):
+    def set_active(self, active: bool, language: str = "Arabic"):
         with self._lock:
-            self._active = active
+            self._active   = active
+            self._language = language
         state = "ON" if active else "OFF"
-        print(f"[GamerMode] toggled {state} (target: '{self.target_window}')")
+        print(f"[GamerMode] toggled {state} (target: '{self.target_window}', language: '{language}')")
 
     def is_active(self) -> bool:
         with self._lock:
@@ -162,6 +171,21 @@ class GamerMode:
                 monitor = {"left": left, "top": top, "width": width, "height": height}
                 raw = sct.grab(monitor)
             img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+            
+            # ── Draw Mouse Cursor ────────────────────────────────────────────
+            mx, my = _get_mouse_pos()
+            # Check if mouse is within this window's bounds
+            if left <= mx < left + width and top <= my < top + height:
+                # Local coordinates within the image
+                lx, ly = mx - left, my - top
+                draw = ImageDraw.Draw(img)
+                # Draw a prominent red cursor (crosshair + circle)
+                r = 15
+                draw.ellipse((lx - r, ly - r, lx + r, ly + r), outline="red", width=3)
+                draw.line((lx - r - 5, ly, lx + r + 5, ly), fill="red", width=3)
+                draw.line((lx, ly - r - 5, lx, ly + r + 5), fill="red", width=3)
+                draw.ellipse((lx - 3, ly - 3, lx + 3, ly + 3), fill="yellow")
+
             # Downscale if very large to keep API costs low
             max_dim = 1280
             if img.width > max_dim or img.height > max_dim:
@@ -205,8 +229,11 @@ class GamerMode:
                     time.sleep(self.interval)
                     continue
 
-                # Call vision model
-                comment = self._vision_fn(img_b64)
+                # Call vision model with current language
+                with self._lock:
+                    language = self._language
+                comment = self._vision_fn(img_b64, language=language)
+                # ── Robust [IGNORE] check ───────────────────────────────────
                 if not comment or "[IGNORE]" in comment.upper():
                     print(f"[GamerMode] IGNORE — no comment.")
                 else:

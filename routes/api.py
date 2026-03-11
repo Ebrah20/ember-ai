@@ -178,13 +178,14 @@ gamer_instance = None
 
 @api_bp.route("/api/gamer_mode", methods=["POST"])
 def gamer_mode_toggle():
-    """Toggle Gamer Mode on or off.  Body: {"active": true|false}"""
+    """Toggle Gamer Mode on or off.  Body: {"active": true|false, "language": "Arabic"}"""
     if gamer_instance is None:
         return jsonify({"error": "GamerMode not initialised"}), 503
-    payload = request.get_json(silent=True) or {}
-    active = bool(payload.get("active", False))
-    gamer_instance.set_active(active)
-    return jsonify({"ok": True, "active": active})
+    payload  = request.get_json(silent=True) or {}
+    active   = bool(payload.get("active", False))
+    language = payload.get("language", "Arabic")
+    gamer_instance.set_active(active, language=language)
+    return jsonify({"ok": True, "active": active, "language": language})
 
 
 @api_bp.route("/api/gamer_mode/status", methods=["GET"])

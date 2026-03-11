@@ -25,11 +25,15 @@
         ? "linear-gradient(135deg, #ff6b35, #e63946)"
         : "";
 
+      // Read selected language from the dropdown
+      const langSelect = document.getElementById("gamerLanguage");
+      const language   = langSelect ? langSelect.value : "Arabic";
+
       try {
         await fetch("/api/gamer_mode", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ active: gamerActive }),
+          body: JSON.stringify({ active: gamerActive, language }),
         });
       } catch (err) {
         console.warn("[GamerMode] toggle failed:", err);
