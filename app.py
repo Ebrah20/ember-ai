@@ -27,7 +27,12 @@ def create_app() -> Flask:
 
     # ── Gamer Mode singleton ──────────────────────────────────────────────────
     from core.gamer import GamerMode
-    from core.brain import gamer_vision, gamer_tts
+    from core.brain import gamer_vision, gamer_tts, read_notification
+    from core.games import detect_game
+
+    # Auto-detect which game profile to use from the window title in .env
+    game_profile = detect_game(GAMER_MODE_TARGET_WINDOW)
+    print(f"[Ember] Gamer Mode profile: {game_profile}")
 
     gm = GamerMode(
         target_window=GAMER_MODE_TARGET_WINDOW,
@@ -35,6 +40,8 @@ def create_app() -> Flask:
         vision_fn=gamer_vision,
         tts_fn=gamer_tts,
     )
+    gm._notif_fn = read_notification   # vision reader for top-left notification zone
+    gm._profile  = game_profile        # game-specific prompts & minimap config
     gm.start()
     _api_routes.gamer_instance = gm
 

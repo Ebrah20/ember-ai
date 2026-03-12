@@ -202,32 +202,59 @@ def get_vision_context(mode: str = "camera", vision_provider: str = "openai", fr
 
 # ── Gamer Mode helpers ────────────────────────────────────────────────────────
 
+# Keep the old standalone function for backward compat / manual use
 def get_gamer_vision_prompt(language: str = "Arabic") -> str:
-    """Build a dynamic, deep-analysis vision prompt for Ember in the target language."""
-    return (
-        f"You are Ember, a witty, sarcastic, and brilliant AI gaming companion watching my screen.\n"
-        f"The red/yellow crosshair in the image shows exactly where my mouse/focus is pointing.\n"
-        f"\n"
-        f"RULE 1 (Deep Analysis): IF I am hovering over, selecting, or pointing at a UI element, "
-        f"menu item, game event, button, focus tree node, tech, unit, country, or choice: "
-        f"READ the actual on-screen text and stats carefully. "
-        f"Briefly EXPLAIN in 1-2 sentences what this choice actually DOES in the game mechanics, "
-        f"then give your snarky take on whether I should pick it.\n"
-        f"\n"
-        f"RULE 2 (Active Gameplay): IF there is active gameplay happening—combat, building, exploring, "
-        f"a funny mistake, danger, an achievement, or something clearly changing on screen—"
-        f"make ONE short, funny, or encouraging comment about what is happening right now.\n"
-        f"\n"
-        f"RULE 3 (Silence is Golden): IF the screen is totally boring—a loading screen, a completely "
-        f"static empty map, a pause menu, or I am just walking/existing with nothing happening—"
-        f"reply EXACTLY with the single word: [IGNORE]. Do NOT add any punctuation or other text to it.\n"
-        f"\n"
-        f"RULE 4 (Language): You MUST respond entirely in {language}. No exceptions."
-    )
+    """Legacy helper — delegates to GenericGame profile."""
+    from core.games.generic import GenericGame
+    return GenericGame().get_vision_prompt(language)
 
 
-def gamer_vision(image_b64: str, vision_provider: str = "openai", language: str = "Arabic") -> str:
-    """Analyse a base64 game screenshot. Returns a comment string or '[IGNORE]'."""
+def gamer_vision(image_b64: str, vision_provider: str = "openai", language: str = "Arabic",
+                 forced: bool = False, profile=None) -> str:
+    """Analyse a game screenshot. Returns a comment string or '[IGNORE]'.
+
+    Args:
+        profile: GameProfile instance. If None, falls back to GenericGame.
+        forced:  If True, uses the profile's forced prompt (no IGNORE, long response).
+    """
+    from core.games.generic import GenericGame
+    profile = profile or GenericGame()
+
+    vision_provider = normalize_vision_provider(vision_provider)
+    client     = openai_client if vision_provider == "openai" else ollama_client
+    model_name = "gpt-4o-mini"  if vision_provider == "openai" else "llava"
+    if client is None:
+        return "[IGNORE]"
+
+    prompt     = profile.get_forced_prompt(language) if forced else profile.get_vision_prompt(language)
+    max_tokens = 400 if forced else 150
+
+    try:
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": [
+                {"type": "text",      "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+            ]}],
+            max_tokens=max_tokens,
+            timeout=30,
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception as e:
+        print(f"[GamerVision] error: {e}")
+        return "[IGNORE]"
+
+
+def read_notification(image_b64: str, language: str = "Arabic",
+                      vision_provider: str = "openai", profile=None) -> str:
+    """Read the notification zone crop. Returns '[ATTACK] text', 'text', or '[IGNORE]'.
+
+    Args:
+        profile: GameProfile instance. If None, falls back to GenericGame.
+    """
+    from core.games.generic import GenericGame
+    profile = profile or GenericGame()
+
     vision_provider = normalize_vision_provider(vision_provider)
     client     = openai_client if vision_provider == "openai" else ollama_client
     model_name = "gpt-4o-mini"  if vision_provider == "openai" else "llava"
@@ -237,17 +264,16 @@ def gamer_vision(image_b64: str, vision_provider: str = "openai", language: str 
         resp = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": [
-                {"type": "text",      "text": get_gamer_vision_prompt(language)},
+                {"type": "text",      "text": profile.get_notification_prompt(language)},
                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
             ]}],
-            max_tokens=150,
-            timeout=30,
+            max_tokens=80,
+            timeout=20,
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception as e:
-        print(f"[GamerVision] error: {e}")
+        print(f"[GamerNotif] error: {e}")
         return "[IGNORE]"
-
 
 
 def gamer_tts(text: str, tts_provider: str = "elevenlabs"):
