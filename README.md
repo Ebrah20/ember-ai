@@ -1,4 +1,4 @@
-# 🌟 Ember — A Multimodal Sassy & Playful AI Waifu (Web UI) 🌟
+# 🌟 Ember — A Multimodal Sassy & Playful AI companion (Web UI) 🌟
 
 A brilliant, tech-savvy AI companion that runs locally with a custom web interface. Ember combines a smart AI brain, dual vision modes, real-time voice, a Live2D avatar, and a **Gamer Mode** that watches your game and comments in real time — all in your browser.
 
